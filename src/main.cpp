@@ -466,12 +466,12 @@ void loop() {
     Psi_bias = _psi;
   }
 
-  
-  //Throttle = (float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
-  Throttle = -(float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
+  //kanazawa  
+  Throttle = (float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
+  //Throttle = -(float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
   Phi = (float)(_phi - Phi_bias)/(float)(RESO10BIT*0.5); 
-  //Theta = -(float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
-  Theta = (float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
+  Theta = -(float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
+  //Theta = (float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
   Psi = (float)(_psi - Psi_bias)/(float)(RESO10BIT*0.5);
 
   uint8_t* d_int;
