@@ -466,7 +466,7 @@ void loop() {
     Psi_bias = _psi;
   }
 
-  
+  //mass pro
   //Throttle = (float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
   Throttle = -(float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
   Phi = (float)(_phi - Phi_bias)/(float)(RESO10BIT*0.5); 
