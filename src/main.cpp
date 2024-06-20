@@ -47,7 +47,7 @@ unsigned long stime,etime,dtime;
 byte axp_cnt=0;
 
 char data[140];
-uint8_t senddata[23];//19->22
+uint8_t senddata[24];//19->22->23->24
 uint8_t disp_counter=0;
 
 //StampFly MAC ADDRESS
@@ -509,7 +509,10 @@ void loop() {
   senddata[20]=getFlipButton();
   senddata[21]=Mode;
   senddata[22]=AltMode;
-
+  
+  //checksum
+  senddata[23]=0;
+  for(uint8_t i=0;i<23;i++)senddata[23]=senddata[23]+senddata[i];
   
   //送信
   esp_err_t result = esp_now_send(peerInfo.peer_addr, senddata, sizeof(senddata));
