@@ -204,7 +204,7 @@ void peering(void)
     Ch_counter++;
     if(Ch_counter==15)Ch_counter=1;
   }
-  Channel = Ch_counter;
+  //Channel = Ch_counter;
 
   save_data();
 
