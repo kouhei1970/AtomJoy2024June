@@ -36,7 +36,7 @@
 #include <atoms3joy.h>
 #include <FS.h>
 #include <SPIFFS.h>
-
+#include "buzzer.h"
 
 #define CHANNEL 1
 
@@ -67,12 +67,11 @@ float dTime = 0.01;
 uint8_t Timer_state = 0;
 uint8_t StickMode = 2;
 uint32_t espnow_version;
-
+volatile uint8_t proactive_flag          = 0;
 unsigned long stime,etime,dtime;
-byte axp_cnt=0;
-
-char data[140];
-uint8_t senddata[24];//19->22->23->24
+uint8_t axp_cnt=0;
+uint8_t is_peering=0;
+uint8_t senddata[25];//19->22->23->24->25
 uint8_t disp_counter=0;
 
 //StampFly MAC ADDRESS
@@ -95,15 +94,43 @@ void voltage_print(void);
 // 受信コールバック
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len) 
 {
-  Received_flag = 1;
-  Channel = recv_data[0];
-  Addr2[0] = recv_data[1];
-  Addr2[1] = recv_data[2];
-  Addr2[2] = recv_data[3];
-  Addr2[3] = recv_data[4];
-  Addr2[4] = recv_data[5];
-  Addr2[5] = recv_data[6];
-  USBSerial.printf("Receive !\n");
+  if (is_peering) {
+    if (recv_data[7] == 0xaa && recv_data[8] == 0x55 && recv_data[9] == 0x16 && recv_data[10] == 0x88) {
+        Received_flag = 1;
+        Channel       = recv_data[0];
+        Addr2[0]      = recv_data[1];
+        Addr2[1]      = recv_data[2];
+        Addr2[2]      = recv_data[3];
+        Addr2[3]      = recv_data[4];
+        Addr2[4]      = recv_data[5];
+        Addr2[5]      = recv_data[6];
+        USBSerial.printf("Receive !\n");
+    }
+  }
+  else {
+    //データ受信時に実行したい内容をここに書く。
+    float a;
+    uint8_t *dummy;
+    uint8_t offset = 2;
+
+    //Channel_detected_flag++;
+    //if(Channel_detected_flag>10)Channel_detected_flag=10;
+    //Serial.printf("Channel=%d  ",Channel);
+    dummy=(uint8_t*)&a;
+    dummy[0]=recv_data[0];
+    dummy[1]=recv_data[1];
+    if (dummy[0]==0xF4)return;
+    if ((dummy[0]==99)&&(dummy[1]==99))Serial.printf("#PID Gain P Ti Td Eta ");
+    for (uint8_t i=0; i<((data_len-offset)/4); i++)
+    {
+      dummy[0]=recv_data[i*4 + 0 + offset];
+      dummy[1]=recv_data[i*4 + 1 + offset];
+      dummy[2]=recv_data[i*4 + 2 + offset];
+      dummy[3]=recv_data[i*4 + 3 + offset];
+      USBSerial.printf("%9.4f ", a);
+    }
+    USBSerial.printf("\r\n");
+  }
 }
 
 #define BUF_SIZE 128
@@ -168,31 +195,33 @@ void load_data(void)
 
 void rc_init(uint8_t ch, uint8_t* addr)
 {  
-  // ESP-NOW初期化
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  if (esp_now_init() == ESP_OK) {
-    USBSerial.println("ESPNow Init Success");
-  } else {
-    USBSerial.println("ESPNow Init Failed");
-    ESP.restart();
-  }
+    // ESP-NOW初期化
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    if (esp_now_init() == ESP_OK) {
+        esp_now_unregister_recv_cb();
+        esp_now_register_recv_cb(OnDataRecv);
+        USBSerial.println("ESPNow Init Success");
+    } else {
+        USBSerial.println("ESPNow Init Failed");
+        ESP.restart();
+    }
 
-  memset(&peerInfo, 0, sizeof(peerInfo));
-  memcpy(peerInfo.peer_addr, addr, 6);
-  peerInfo.channel = ch;
-  peerInfo.encrypt = false;
-  uint8_t peer_mac_addre;
-  while (esp_now_add_peer(&peerInfo) != ESP_OK) 
-  {
+    memset(&peerInfo, 0, sizeof(peerInfo));
+    memcpy(peerInfo.peer_addr, addr, 6);
+    peerInfo.channel = ch;
+    peerInfo.encrypt = false;
+    uint8_t peer_mac_addre;
+    while (esp_now_add_peer(&peerInfo) != ESP_OK) {
         USBSerial.println("Failed to add peer");
-  }  
-  esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
+    }
+    esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
 }
 
 void peering(void)
 {
   uint8_t break_flag;
+  uint32_t beep_delay = 0;
   //StampFlyはMACアドレスをFF:FF:FF:FF:FF:FFとして
   //StampFlyのMACアドレスをでブロードキャストする
   //その際にChannelが機体と送信機で同一でない場合は受け取れない
@@ -225,6 +254,11 @@ void peering(void)
           }
           usleep(100);
     }
+    if (millis() - beep_delay >= 500) {
+        beep();
+        beep_delay = millis();
+    }
+
     if (break_flag)break;
     Ch_counter++;
     if(Ch_counter==15)Ch_counter=1;
@@ -232,7 +266,7 @@ void peering(void)
   //Channel = Ch_counter;
 
   save_data();
-
+  is_peering = 0;
   USBSerial.printf("Channel:%02d\n\r", Channel);
   USBSerial.printf("MAC2:%02X:%02X:%02X:%02X:%02X:%02X:\n\r",
                     Addr2[0],Addr2[1],Addr2[2],Addr2[3],Addr2[4],Addr2[5]);
@@ -277,24 +311,33 @@ void setup() {
   M5.begin();
   Wire1.begin(38, 39, 400*1000);
   load_data();
-  M5.update();  
+  M5.update();
+  setup_pwm_buzzer();
   M5.Lcd.setRotation( 2 );
   M5.Lcd.setTextFont(2);
   M5.Lcd.setCursor(4, 2);
   
-  if(M5.Btn.isPressed())
-  {
+  if (M5.Btn.isPressed() || (Addr2[0] == 0xFF && Addr2[1] == 0xFF && Addr2[2] == 0xFF && Addr2[3] == 0xFF &&
+                               Addr2[4] == 0xFF && Addr2[5] == 0xFF)) {
+    M5.Lcd.println("Push LCD panel!");
+    while (1) {
+      M5.update();
+      if (M5.Btn.wasPressed()) {
+        is_peering = 1;
+        break;
+      }
+    }
     rc_init(1, Addr1);
     USBSerial.printf("Button pressed!\n\r");
-    M5.Lcd.println("Peering...");
+    M5.Lcd.println(" ");
+    M5.Lcd.println("Push StampFly");
+    M5.Lcd.println("    Reset Button!");
+    M5.Lcd.println(" ");
+    M5.Lcd.println("Pairing...");
     peering();
   }
-  #ifdef DEBUG
-  else rc_init(Channel, Addr1);
-  #else
   else rc_init(Channel, Addr2);
-  #endif
-
+  M5.Lcd.fillScreen(BLACK);
   joy_update();
 
   StickMode = 2;
@@ -366,7 +409,7 @@ void setup() {
     USBSerial.println("done\n");
 
   esp_now_get_version(&espnow_version);
-  USBSerial.printf("Version %d\n", espnow_version);
+  USBSerial.printf("ESP-NOW Version %d\n", espnow_version);
 
 
   //割り込み設定
@@ -534,10 +577,11 @@ void loop() {
   senddata[20]=getFlipButton();
   senddata[21]=Mode;
   senddata[22]=AltMode;
+  senddata[23]=proactive_flag;
   
   //checksum
-  senddata[23]=0;
-  for(uint8_t i=0;i<23;i++)senddata[23]=senddata[23]+senddata[i];
+  senddata[24]=0;
+  for(uint8_t i=0;i<24;i++)senddata[24]=senddata[24]+senddata[i];
   
   //送信
   esp_err_t result = esp_now_send(peerInfo.peer_addr, senddata, sizeof(senddata));
