@@ -534,13 +534,20 @@ void loop() {
     Psi_bias = _psi;
   }
 
-  //mass pro
-  //Throttle = (float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
+  //量産版
   Throttle = -(float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
-  Phi = (float)(_phi - Phi_bias)/(float)(RESO10BIT*0.5); 
-  //Theta = -(float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
-  Theta = (float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
-  Psi = (float)(_psi - Psi_bias)/(float)(RESO10BIT*0.5);
+  Phi =       (float)(_phi - Phi_bias)/(float)(RESO10BIT*0.5); 
+  Theta =     (float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
+  Psi =       (float)(_psi - Psi_bias)/(float)(RESO10BIT*0.5);
+
+  //最終試作版
+  #if 0
+  Throttle = (float)(_throttle - Throttle_bias)/(float)(RESO10BIT*0.5);
+  Phi =      (float)(_phi - Phi_bias)/(float)(RESO10BIT*0.5); 
+  Theta =   -(float)(_theta - Theta_bias)/(float)(RESO10BIT*0.5);
+  Psi =      (float)(_psi - Psi_bias)/(float)(RESO10BIT*0.5);
+  #endif
+
 
   uint8_t* d_int;
   
