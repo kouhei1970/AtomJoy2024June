@@ -129,11 +129,11 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
       dummy[2]=recv_data[i*4 + 2 + offset];
       dummy[3]=recv_data[i*4 + 3 + offset];
       if (i<((data_len-offset)/4)-1){
-        //USBSerial.printf("%9.4f ", a);
-        USBSerial.printf("%02d ", i);
+        USBSerial.printf("%9.4f ", a);
+        //USBSerial.printf("%02d ", i);
       }
       else {
-        USBSerial.printf("%02d %3d", i, dummy[0]);//, dummy[1], dummy[2]+256*dummy[3]);
+        USBSerial.printf("%2d %2d %4d", dummy[0], dummy[1], dummy[2]+256*dummy[3]);
       }
     }
     USBSerial.printf("\r\n");
