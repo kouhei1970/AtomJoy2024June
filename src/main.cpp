@@ -121,13 +121,20 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
     dummy[1]=recv_data[1];
     if (dummy[0]==0xF4)return;
     if ((dummy[0]==99)&&(dummy[1]==99))Serial.printf("#PID Gain P Ti Td Eta ");
+    USBSerial.printf("%d ",(data_len-2)/4);
     for (uint8_t i=0; i<((data_len-offset)/4); i++)
     {
       dummy[0]=recv_data[i*4 + 0 + offset];
       dummy[1]=recv_data[i*4 + 1 + offset];
       dummy[2]=recv_data[i*4 + 2 + offset];
       dummy[3]=recv_data[i*4 + 3 + offset];
-      USBSerial.printf("%9.4f ", a);
+      if (i<((data_len-offset)/4)-1){
+        USBSerial.printf("%9.4f ", a);
+        //USBSerial.printf("%02d ", i);
+      }
+      else {
+        USBSerial.printf("%2d %2d %4d", dummy[0], dummy[1], dummy[2]+256*dummy[3]);
+      }
     }
     USBSerial.printf("\r\n");
   }
